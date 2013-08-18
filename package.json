@@ -4,10 +4,10 @@
   "author": "Rafal Rzepecki <divided.mind@gmail.com>",
   "description": "Google Tasks -> RSS bridge",
   "bin": {
-    "http-server": "./bin/web.js"
+    "http-server": "./bin/web.kal"
   },
   "scripts": {
-    "start": "node ./bin/web.js"
+    "start": "node ./bin/web.kal"
   },
   "repository": {
     "type": "git",

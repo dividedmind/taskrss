@@ -8,9 +8,9 @@ app = express()
 
 app.use express.logger()
 
-function render_kal(filename, cb)
+task render_kal(filename, cb)
   wait for content from fs.readFile filename, 'utf8'
-  cb kal.compile content, {filename:filename}
+  return kal.compile content, {filename:filename}
 
 kal = require 'kal'
 compile = require 'compile-middleware'
@@ -18,6 +18,23 @@ app.use compile { filename: /(.*)\.js/i,
   src_ext: '.kal',
   src: 'assets',
   render: render_kal
+}
+
+less = require('less').Parser
+
+task render_less(filename)
+  options = { filename: filename, paths: ["templates"] }
+  
+  parser = new(less) options
+  wait for content from fs.readFile filename, 'utf8'
+  wait for tree from parser.parse content
+  return tree.toCSS()
+
+app.use compile { filename: /(.*)\.css/i,
+  src_ext: '.less',
+  src: 'styles',
+  render: render_less,
+  headers: { 'Content-Type': 'text/css' }
 }
 
 function render(name, cb)

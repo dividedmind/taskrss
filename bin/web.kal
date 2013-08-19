@@ -23,6 +23,18 @@ app = express()
 
 app.use express.logger()
 
+function render_kal(filename, cb)
+  wait for content from fs.readFile filename, 'utf8'
+  cb kal.compile content, {filename:filename}
+
+kal = require 'kal'
+compile = require 'compile-middleware'
+app.use compile { filename: /(.*)\.js/i,
+  src_ext: '.kal',
+  src: 'assets',
+  render: render_kal
+}
+
 # return a file list for the root path
 app.get '/', (req, res) ->
   print 'Request for directory listing'

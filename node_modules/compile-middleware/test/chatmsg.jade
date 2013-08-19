@@ -1,0 +1,8 @@
+.msg
+  .avatar
+    img(src="#{user.avatar[0]}", alt="#{user.name}")
+  .content
+    .stat
+      .user #{user.name} (#{user.uid})
+      .time AT #{time}
+    pre.message #{msg}

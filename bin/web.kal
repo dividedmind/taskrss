@@ -146,13 +146,16 @@ app.get '/tasks/:hash/:kind', function(req, res)
   o2c.credentials = { access_token: user.access_token, refresh_token: user.refresh_token }
   wait for client from googleapis.discover('tasks', 'v1').execute()
   wait for lists from client.tasks.tasklists.list().withAuthClient(o2c).execute()
-  listid = lists.items[0].id
-  wait for list from client.tasks.tasks.list({tasklist: listid}).withAuthClient(o2c).execute()
+
   feed = new rss { title: "#{req.params.kind} tasks" }
-  for item in list.items
-    feed.item { guid: item.id,
-               date: item.updated,
-               title: item.title }
+
+  for parallel list in lists.items
+    listid = list.id
+    wait for list from client.tasks.tasks.list({tasklist: listid}).withAuthClient(o2c).execute()
+    for parallel item in list.items
+      feed.item { guid: item.id,
+                date: item.updated,
+                title: item.title }
   
   # res.setHeader 'Content-Type', 'application/rss+xml'
   res.send feed.xml(env == 'dev')

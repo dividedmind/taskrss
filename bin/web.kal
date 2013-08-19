@@ -20,6 +20,31 @@ app.use compile { filename: /(.*)\.js/i,
   render: render_kal
 }
 
+colors = [ "091001",
+          "060804",
+          "030500",
+          "76A93A",
+          "89A964",
+
+          "01070C",
+          "030506",
+          "000203",
+          "407DA7",
+          "678DA7",
+
+          "120A01",
+          "090705",
+          "050300",
+          "AA793A",
+          "AA8C64",
+
+          "100106",
+          "080405",
+          "050002",
+          "A93A65",
+          "A9647F",
+]
+
 less = require('less').Parser
 
 task render_less(filename)
@@ -27,6 +52,15 @@ task render_less(filename)
   
   parser = new(less) options
   wait for content from fs.readFile filename, 'utf8'
+  
+  function random_color()
+    return "#" + colors[Math.floor(Math.random() * colors.length)]
+  
+  new_content = nothing
+  while new_content != content
+    content = new_content if new_content exists
+    new_content = content.replace "@color", random_color()
+  
   wait for tree from parser.parse content
   return tree.toCSS()
 

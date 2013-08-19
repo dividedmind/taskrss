@@ -1,23 +1,8 @@
 #!/usr/bin/env kal
 
-# This demo starts a web server on port 8888 on
-# the local machine, accessible in the browser from
-# http://localhost:8000/
-
-# The root path '/' will give a listing of all files
-# in the current directory. Things to try:
-# * Click on the links. Files with .txt or .md extensions
-# will return their contents. Other files will return the
-# size of the file
-# * Try a bad path to see the 404 message
-# * Look at the terminal output
-
-
-# This script uses express.js, so make sure
-# you have run npm install to include dependencies
-
 fs = require 'fs'
 express = require 'express'
+jade = require 'jade'
 
 app = express()
 
@@ -35,19 +20,18 @@ app.use compile { filename: /(.*)\.js/i,
   render: render_kal
 }
 
+function render(name, cb)
+  filename = "templates/#{name}.jade"
+  options = { filename: filename, pretty: true }
+  jade.renderFile filename, options, cb
+
 # return a file list for the root path
 app.get '/', (req, res) ->
-  print 'Request for directory listing'
-  # this path returns HTML with links
   res.setHeader 'Content-Type', 'text/html'
-  # asynchronous call to readdir to get the files list of the current directory
-  wait for file_list from fs.readdir '.'
-  # list comprehension to generate the list of links
-  links = ["<a href=\"#{file_name}\">#{file_name}</a>" for file_name in file_list]
-  # string inlining to generate the HTML output
-  res.send "<html><head><title>Kal Demo</title></head><body>#{links.join('<br>')}</body></html>"
+  wait for content from render "frontpage"
+  res.send content
 
-app.get '/:file_name', (req, res) ->
+app.get '/:file_name', function(req, res)
   print "Request for #{req.params.file_name}"
   # this route always returns plain text
   res.setHeader 'Content-Type', 'text/plain'

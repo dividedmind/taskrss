@@ -88,6 +88,11 @@ app.use compile { filename: /(.*)\.css/i,
   headers: { 'Content-Type': 'text/css' }
 }
 
+app.use(function(err, req, res, next)
+  print err.stack
+  res.send 500, 'Something broke!'
+)
+
 function setup_feeds(req, res)
   refresh_token = req.cookies.refresh_token
   access_token = req.cookies.access_token
@@ -140,24 +145,45 @@ app.get '/oauth2callback', function(req, res)
   res.redirect '/'
 
 app.get '/tasks/:hash/:kind', function(req, res)
+  unless req.params.kind in ["new", "completed"]
+    return res.status(404).send "no such feed"
+  
   safe wait for data from firebase.child(req.params.hash).once "value"
   user = data.val()
+  unless user
+    return res.status(404).send "no such user. Reauthenticate?"
+  
   o2c = oauth2client(req)
   o2c.credentials = { access_token: user.access_token, refresh_token: user.refresh_token }
   wait for client from googleapis.discover('tasks', 'v1').execute()
   wait for lists from client.tasks.tasklists.list().withAuthClient(o2c).execute()
 
-  feed = new rss { title: "#{req.params.kind} tasks" }
+  feed = new rss { title: "#{req.params.kind} tasks",
+                  feed_url: base_url(req) + req.path,
+                  site_url: base_url(req)
+                  }
 
+  completed = req.params.kind is "completed"
   for parallel list in lists.items
     listid = list.id
-    wait for list from client.tasks.tasks.list({tasklist: listid}).withAuthClient(o2c).execute()
+    params = { tasklist: listid,
+              fields: "items(completed,id,status,title,updated)",
+              showHidden: completed,
+              showDeleted: completed,
+              }
+    wait for list from client.tasks.tasks.list(params).withAuthClient(o2c).execute()
     for parallel item in list.items
-      feed.item { guid: item.id,
-                date: item.updated,
+      data = { guid: item.id,
                 title: item.title }
+      if completed
+        if item.status is "completed"
+          data.date = item.completed
+          feed.item data
+      else
+        data.date = item.updated
+        feed.item data
   
-  # res.setHeader 'Content-Type', 'application/rss+xml'
+  res.setHeader 'Content-Type', 'application/rss+xml'
   res.send feed.xml(env == 'dev')
 
 app.listen port

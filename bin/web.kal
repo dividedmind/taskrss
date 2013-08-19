@@ -167,14 +167,15 @@ app.get '/tasks/:hash/:kind', function(req, res)
   for parallel list in lists.items
     listid = list.id
     params = { tasklist: listid,
-              fields: "items(completed,id,status,title,updated)",
+              fields: "items(completed,id,status,title,updated,selfLink)",
               showHidden: completed,
               showDeleted: completed,
               }
     wait for list from client.tasks.tasks.list(params).withAuthClient(o2c).execute()
     for parallel item in list.items
       data = { guid: item.id,
-                title: item.title }
+                title: item.title,
+                url: item.selfLink }
       if completed
         if item.status is "completed"
           data.date = item.completed

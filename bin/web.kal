@@ -9,6 +9,7 @@ crypto = require 'crypto'
 app = express()
 
 app.use express.logger()
+app.use express.compress()
 app.use express.cookieParser()
 app.set "views", "templates"
 app.set "view engine", "jade"
@@ -91,19 +92,28 @@ function render_feedspage(req, cb)
 
 app.get '/', (req, res) ->
   res.setHeader 'Content-Type', 'text/html'
-  wait for content from res.render "frontpage"
-  wait for html from res.render "layout", { content: content }
+  res.locals.refresh_token = req.cookies.refresh_token
+  template = "frontpage"
+  if res.locals.refresh_token
+    hash = crypto.createHash("md5").update(res.locals.refresh_token).digest('hex')
+    res.locals.feed_new = base_url(req) + "/tasks/#{hash}/new"
+    res.locals.feed_done = base_url(req) + "/tasks/#{hash}/completed"
+    template = "feeds"
+  wait for html from res.render template
   res.send html
 
 port = process.env.PORT or 5000
 
 oauth2client_ = nothing
 
+function base_url(req)
+  host = req.host
+  host += ":5000" if host is "localhost"
+  return req.protocol + '://' + host
+
 function oauth2client(req)
   if oauth2client_ doesnt exist
-    host = req.host
-    host += ":5000" if host is "localhost"
-    callback_url = req.protocol + '://' + host + "/oauth2callback"
+    callback_url = base_url(req) + "/oauth2callback"
     oauth2client_ = new googleapis.OAuth2Client process.env.G_CLIENT_ID, process.env.G_CLIENT_SECRET, callback_url
   return oauth2client_
 

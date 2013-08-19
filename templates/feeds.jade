@@ -1,0 +1,13 @@
+extends layout
+
+block content
+  h3 Your feeds
+  dl
+    dt
+      a(href=feed_new) New tasks
+    dd 
+      = feed_new
+    dt
+      a(href=feed_done) Completed tasks
+    dd 
+      = feed_done

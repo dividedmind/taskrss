@@ -4,10 +4,16 @@ fs = require 'fs'
 express = require 'express'
 jade = require 'jade'
 googleapis = require 'googleapis'
+crypto = require 'crypto'
 
 app = express()
 
 app.use express.logger()
+app.use express.cookieParser()
+app.set "views", "templates"
+app.set "view engine", "jade"
+app.locals.title = "Taskrss"
+app.locals.tagline = "Google Tasks to RSS bridge"
 
 task render_kal(filename, cb)
   wait for content from fs.readFile filename, 'utf8'
@@ -71,15 +77,23 @@ app.use compile { filename: /(.*)\.css/i,
   headers: { 'Content-Type': 'text/css' }
 }
 
-function render(name, cb)
-  filename = "templates/#{name}.jade"
+function render_frontpage(cb)
+  filename = "templates/frontpage.jade"
   options = { filename: filename, pretty: true }
   jade.renderFile filename, options, cb
 
+
+function render_feedspage(req, cb)
+  refresh_token = req.cookies.refresh_token
+  hash = crypto.createHash("md5").update(refresh_token).digest('hex')
+  options = { filename: filename, pretty: true, hash: hash }
+  jade.renderFile "templates/feeds.jade", options, cb
+
 app.get '/', (req, res) ->
   res.setHeader 'Content-Type', 'text/html'
-  wait for content from render "frontpage"
-  res.send content
+  wait for content from res.render "frontpage"
+  wait for html from res.render "layout", { content: content }
+  res.send html
 
 port = process.env.PORT or 5000
 
@@ -95,16 +109,16 @@ function oauth2client(req)
 
 app.get '/login', function(req, res)
   client = oauth2client req
-  url = client.generateAuthUrl { access_type: 'offline', scope: 'https://www.googleapis.com/auth/tasks.readonly' }
+  url = client.generateAuthUrl { access_type: 'offline', 
+                                scope: 'https://www.googleapis.com/auth/tasks.readonly',
+                                approval_prompt: 'force' }
   res.redirect url
 
 app.get '/oauth2callback', function(req, res)
   client = oauth2client req
   wait for token from client.getToken req.query.code
-  print token
-  res.cookie 'access_token', token.access_token, { maxAge: token.expires_in * 1000, httpOnly: true }
-  res.cookie 'refresh_token', token.refresh_token, { maxAge: 3e10, httpOnly: true } if token.refresh_token
-  res.send "ok"
+  res.cookie 'refresh_token', token.refresh_token, { maxAge: 3e10, httpOnly: true }
+  res.redirect '/'
 
 app.listen port
 

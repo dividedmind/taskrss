@@ -94,8 +94,8 @@ function setup_feeds(req, res)
   hash = crypto.createHash("md5").update(refresh_token).digest('hex')
   
   data = firebase.child hash
-  data.set { refresh_token: refresh_token }
-  data.set { access_token: access_token } if access_token exists
+  data.child('refresh_token').set refresh_token
+  data.child('access_token').set access_token if access_token exists
   
   res.locals.feed_new = base_url(req) + "/tasks/#{hash}/new"
   res.locals.feed_done = base_url(req) + "/tasks/#{hash}/completed"
@@ -137,6 +137,15 @@ app.get '/oauth2callback', function(req, res)
   res.cookie 'access_token', token.access_token, { maxAge: token.expires_in * 1000, httpOnly: true }
   res.cookie 'refresh_token', token.refresh_token, { maxAge: 3e10, httpOnly: true }
   res.redirect '/'
+
+app.get '/tasks/:hash/:kind', function(req, res)
+  safe wait for data from firebase.child(req.params.hash).once "value"
+  user = data.val()
+  o2c = oauth2client(req)
+  o2c.credentials = { access_token: user.access_token, refresh_token: user.refresh_token }
+  wait for client from googleapis.discover('tasks', 'v1').execute()
+  wait for lists from client.tasks.tasklists.list().withAuthClient(o2c).execute()
+  res.send lists
 
 app.listen port
 

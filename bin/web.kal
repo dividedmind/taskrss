@@ -1,10 +1,19 @@
 #!/usr/bin/env kal
 
+env = process.env.NODE_ENV or 'dev'
+
 fs = require 'fs'
 express = require 'express'
 jade = require 'jade'
 googleapis = require 'googleapis'
 crypto = require 'crypto'
+
+firebase = new(require('firebase'))(process.env.FIREBASE_URL)
+tokenGenerator = new(require("firebase-token-generator"))(process.env.FIREBASE_SECRET)
+token = tokenGenerator.createToken { app: "taskrss" }, { debug: env == 'dev' }
+firebase.auth token, function(error)
+  if error
+    print "Firebase login failed! #{error}"
 
 app = express()
 
@@ -78,26 +87,24 @@ app.use compile { filename: /(.*)\.css/i,
   headers: { 'Content-Type': 'text/css' }
 }
 
-function render_frontpage(cb)
-  filename = "templates/frontpage.jade"
-  options = { filename: filename, pretty: true }
-  jade.renderFile filename, options, cb
-
-
-function render_feedspage(req, cb)
+function setup_feeds(req, res)
   refresh_token = req.cookies.refresh_token
+  access_token = req.cookies.access_token
+  
   hash = crypto.createHash("md5").update(refresh_token).digest('hex')
-  options = { filename: filename, pretty: true, hash: hash }
-  jade.renderFile "templates/feeds.jade", options, cb
+  
+  data = firebase.child hash
+  data.set { refresh_token: refresh_token }
+  data.set { access_token: access_token } if access_token exists
+  
+  res.locals.feed_new = base_url(req) + "/tasks/#{hash}/new"
+  res.locals.feed_done = base_url(req) + "/tasks/#{hash}/completed"
 
 app.get '/', (req, res) ->
   res.setHeader 'Content-Type', 'text/html'
-  res.locals.refresh_token = req.cookies.refresh_token
   template = "frontpage"
-  if res.locals.refresh_token
-    hash = crypto.createHash("md5").update(res.locals.refresh_token).digest('hex')
-    res.locals.feed_new = base_url(req) + "/tasks/#{hash}/new"
-    res.locals.feed_done = base_url(req) + "/tasks/#{hash}/completed"
+  if req.cookies.refresh_token
+    setup_feeds req, res
     template = "feeds"
   wait for html from res.render template
   res.send html
@@ -127,6 +134,7 @@ app.get '/login', function(req, res)
 app.get '/oauth2callback', function(req, res)
   client = oauth2client req
   wait for token from client.getToken req.query.code
+  res.cookie 'access_token', token.access_token, { maxAge: token.expires_in * 1000, httpOnly: true }
   res.cookie 'refresh_token', token.refresh_token, { maxAge: 3e10, httpOnly: true }
   res.redirect '/'
 

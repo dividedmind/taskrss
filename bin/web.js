@@ -32,6 +32,15 @@ var less = require('less').Parser;
 
 function render_less(filename, cb)
 {
+  var colors = [ 
+    "091001", "060804", "030500", "76A93A", "89A964", "01070C", "030506", 
+    "000203", "407DA7", "678DA7", "120A01", "090705", "050300", "AA793A", 
+    "AA8C64", "100106", "080405", "050002", "A93A65", "A9647F" ];
+
+  function random_color() {
+    return "#" + colors[Math.floor(Math.random() * colors.length)]
+  }
+  
   function return_tree(err, tree) {
     cb(err, tree.toCSS());
   };
@@ -40,6 +49,13 @@ function render_less(filename, cb)
     if (err)
       return cb(err, undefined);
     
+    var new_content = undefined;
+    while (new_content !== content) {
+      if (new_content)
+        content = new_content;
+      new_content = content.replace("@random-color", random_color());
+    }
+  
     var options = { filename: filename, paths: ["templates"] };
     var parser = new(less)(options);
   

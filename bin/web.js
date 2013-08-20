@@ -147,6 +147,14 @@ function get_login(req, res)
 }
 app.get('/login', get_login);
 
+function get_logout(req, res)
+{
+  res.cookie('access_token', undefined, { maxAge: 0, httpOnly: true });
+  res.cookie('refresh_token', undefined, { maxAge: 0, httpOnly: true });
+  res.redirect('/');
+}
+app.get('/logout', get_logout);
+
 function get_oauth2callback(req, res)
 {
   function handleToken(err, token) {

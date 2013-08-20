@@ -164,25 +164,27 @@ app.get '/tasks/:hash/:kind', function(req, res)
                   }
 
   completed = req.params.kind is "completed"
-  for parallel list in lists.items
-    listid = list.id
-    params = { tasklist: listid,
-              fields: "items(completed,id,status,title,updated,selfLink)",
-              showHidden: completed,
-              showDeleted: completed,
-              }
-    wait for list from client.tasks.tasks.list(params).withAuthClient(o2c).execute()
-    for parallel item in list.items
-      data = { guid: item.id,
-                title: item.title,
-                url: item.selfLink }
-      if completed
-        if item.status is "completed"
-          data.date = item.completed
-          feed.item data
-      else
-        data.date = item.updated
-        feed.item data
+  if lists.items.length > 0
+    for parallel list in lists.items
+      listid = list.id
+      params = { tasklist: listid,
+                fields: "items(completed,id,status,title,updated,selfLink)",
+                showHidden: completed,
+                showDeleted: completed,
+                }
+      wait for list from client.tasks.tasks.list(params).withAuthClient(o2c).execute()
+      if list.items.length > 0
+        for parallel item in list.items
+          data = { guid: item.id,
+                    title: item.title,
+                    url: item.selfLink }
+          if completed
+            if item.status is "completed"
+              data.date = item.completed
+              feed.item data
+          else
+            data.date = item.updated
+            feed.item data
   
   res.setHeader 'Content-Type', 'application/rss+xml'
   res.send feed.xml(env == 'dev')

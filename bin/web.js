@@ -33,7 +33,7 @@ var less = require('less').Parser;
 function render_less(filename, cb)
 {
   function return_tree(err, tree) {
-    cb(err, tree);
+    cb(err, tree.toCSS());
   };
   
   function parse(err, content) {

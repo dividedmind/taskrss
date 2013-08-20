@@ -1,0 +1,112 @@
+#!/usr/bin/env kal
+
+fs = require 'fs'
+express = require 'express'
+jade = require 'jade'
+
+app = express()
+
+app.use express.logger()
+
+task render_kal(filename, cb)
+  wait for content from fs.readFile filename, 'utf8'
+  return kal.compile content, {filename:filename}
+
+kal = require 'kal'
+compile = require 'compile-middleware'
+app.use compile { filename: /(.*)\.js/i,
+  src_ext: '.kal',
+  src: 'assets',
+  render: render_kal
+}
+
+colors = [ "091001",
+          "060804",
+          "030500",
+          "76A93A",
+          "89A964",
+
+          "01070C",
+          "030506",
+          "000203",
+          "407DA7",
+          "678DA7",
+
+          "120A01",
+          "090705",
+          "050300",
+          "AA793A",
+          "AA8C64",
+
+          "100106",
+          "080405",
+          "050002",
+          "A93A65",
+          "A9647F",
+]
+
+less = require('less').Parser
+
+task render_less(filename)
+  options = { filename: filename, paths: ["templates"] }
+  
+  parser = new(less) options
+  wait for content from fs.readFile filename, 'utf8'
+  
+  function random_color()
+    return "#" + colors[Math.floor(Math.random() * colors.length)]
+  
+  new_content = nothing
+  while new_content != content
+    content = new_content if new_content exists
+    new_content = content.replace "@color", random_color()
+  
+  wait for tree from parser.parse content
+  return tree.toCSS()
+
+app.use compile { filename: /(.*)\.css/i,
+  src_ext: '.less',
+  src: 'styles',
+  render: render_less,
+  headers: { 'Content-Type': 'text/css' }
+}
+
+function render(name, cb)
+  filename = "templates/#{name}.jade"
+  options = { filename: filename, pretty: true }
+  jade.renderFile filename, options, cb
+
+# return a file list for the root path
+app.get '/', (req, res) ->
+  res.setHeader 'Content-Type', 'text/html'
+  wait for content from render "frontpage"
+  res.send content
+
+app.get '/:file_name', function(req, res)
+  print "Request for #{req.params.file_name}"
+  # this route always returns plain text
+  res.setHeader 'Content-Type', 'text/plain'
+  # get the file name from the request
+  file_name = req.params.file_name
+  # try to read the file, use the catch clause if it doesn't exist
+  try
+    # check if it's a text file or markdown file
+    if file_name.match /.*\.(txt|kal)/
+      # for a text file, asynchronously read the contents
+      wait for return_text from fs.readFile file_name
+      print "...returning file contents for #{req.params.file_name}"
+    else
+      # for a non-text file, asynchronously read the file size
+      wait for file_stats from fs.stat file_name
+      return_text = 'File of size '+ file_stats.size
+      print "...returning file size for #{req.params.file_name}"
+    res.send return_text
+  catch e
+    print "...could not find #{req.params.file_name}"
+    # if any function above calls back with an error, return a 404
+    res.send 404, 'File not found'
+
+port = process.env.PORT or 5000
+app.listen port
+
+print "Listening on port #{port}"

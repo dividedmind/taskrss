@@ -1,1 +1,1 @@
-web: bin/web.kal
+web: node bin/web.js

@@ -8,6 +8,7 @@ var crypto = require('crypto');
 var rss = require('rss');
 var async = require('async');
 var compile = require('compile-middleware');
+var moment = require('moment');
 
 var firebase = new(require('firebase'))(process.env.FIREBASE_URL);
 var tokenGenerator = new(require("firebase-token-generator"))(process.env.FIREBASE_SECRET);
@@ -163,9 +164,14 @@ function get_feed(req, res)
   
   var common_params = {
     fields: "items(completed,id,status,title,updated,selfLink)",
-    showHidden: completed,
-    showDeleted: completed
+    showHidden: completed
   };
+  
+  var lastMonth = moment().subtract(1, 'month').format();
+  if (completed)
+    common_params.completedMin = lastMonth;
+  else
+    common_params.updatedMin = lastMonth;
   
   var lists_left = 0;
   
@@ -186,15 +192,11 @@ function get_feed(req, res)
     var data = { guid: item.id,
           title: item.title,
           url: item.selfLink };
-    if (completed) {
-      if (item.status === "completed") {
-        data.date = item.completed;
-        feed.item(data);
-      }
-    } else {
+    if (completed)
+      data.date = item.completed;
+    else
       data.date = item.updated;
-      feed.item(data);
-    }
+    feed.item(data);
     cb();
   }
   

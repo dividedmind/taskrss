@@ -226,7 +226,10 @@ function get_feed(req, res)
   
   function handle_list(err, list) {
     if (err) return send_error(new Error(err.message));
-    async.each(list.items, build_item, maybe_send_result);
+    if (list.items)
+      async.each(list.items, build_item, maybe_send_result);
+    else
+      maybe_send_result(null);
   }
   
   function get_list(list) {
